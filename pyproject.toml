@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "emoji-suggest"
+version = "0.1.0"
+description = "Suggest emojis for any topic — official, creative, and from a custom subset"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+keywords = ["emoji", "nlp", "claude", "anthropic"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+    "anthropic>=0.40.0",
+    "emoji>=2.10.0",
+    "grapheme>=0.6.0",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "typer>=0.12.0",
+]
+
+[project.scripts]
+emoji-suggest = "emoji_suggest.cli:run"
+
+[project.optional-dependencies]
+yaml-config = ["pyyaml>=6.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["emoji_suggest"]
