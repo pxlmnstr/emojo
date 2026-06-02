@@ -28,6 +28,7 @@ emoji-suggest = "emoji_suggest.cli:run"
 
 [project.optional-dependencies]
 yaml-config = ["pyyaml>=6.0"]
+anthropic = ["anthropic>=0.40.0"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["emoji_suggest"]

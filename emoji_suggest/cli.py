@@ -5,7 +5,7 @@ from typing import Annotated, Optional
 import grapheme
 import typer
 
-from .config import EmojiSuggestConfig
+from .config import BackendMode, EmojiSuggestConfig
 from .suggest import suggest
 
 app = typer.Typer(help="Suggest emojis for any topic.")
@@ -20,7 +20,11 @@ def main(
     ] = None,
     model: Annotated[
         Optional[str],
-        typer.Option("--model", "-m", help="Claude model override"),
+        typer.Option("--model", "-m", help="Model override (Anthropic or Ollama model name)"),
+    ] = None,
+    backend: Annotated[
+        Optional[BackendMode],
+        typer.Option("--backend", "-b", help="Backend: anthropic or ollama (default: ollama)"),
     ] = None,
     json_output: Annotated[
         bool,
@@ -28,8 +32,13 @@ def main(
     ] = False,
 ) -> None:
     config = EmojiSuggestConfig()
+    if backend:
+        config.backend = backend
     if model:
-        config.model = model
+        if config.backend == BackendMode.ollama:
+            config.ollama_model = model
+        else:
+            config.model = model
 
     active_subset = list(grapheme.graphemes(subset)) if subset else None
 
