@@ -25,6 +25,7 @@ _CONFIG_FILE = str(Path.home() / ".config" / "emoji-suggest" / "config.yaml")
 
 
 class BackendMode(str, Enum):
+    claude_cli = "claude-cli"
     anthropic = "anthropic"
     ollama = "ollama"
 
@@ -37,8 +38,21 @@ class EmojiSuggestConfig(BaseSettings):
     )
 
     backend: BackendMode = Field(
-        default=BackendMode.ollama,
-        description="LLM backend: 'anthropic' (API key required) or 'ollama' (free, local)",
+        default=BackendMode.claude_cli,
+        description=(
+            "LLM backend: 'claude-cli' (uses your Claude Code login / Pro subscription, "
+            "no API credits), 'anthropic' (API key required), or 'ollama' (free, local)"
+        ),
+    )
+
+    # --- Claude CLI ---
+    claude_cli_path: str = Field(
+        default="",
+        description="Path to the `claude` binary (auto-detected from PATH if empty)",
+    )
+    claude_cli_model: str = Field(
+        default="",
+        description="Model name for the claude CLI (empty = CLI default)",
     )
 
     # --- Anthropic ---

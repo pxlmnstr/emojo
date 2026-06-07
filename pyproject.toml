@@ -15,7 +15,6 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
 ]
 dependencies = [
-    "anthropic>=0.40.0",
     "emoji>=2.10.0",
     "grapheme>=0.6.0",
     "pydantic>=2.0",

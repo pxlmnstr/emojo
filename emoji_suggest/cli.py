@@ -20,11 +20,14 @@ def main(
     ] = None,
     model: Annotated[
         Optional[str],
-        typer.Option("--model", "-m", help="Model override (Anthropic or Ollama model name)"),
+        typer.Option("--model", "-m", help="Model override (backend-specific model name)"),
     ] = None,
     backend: Annotated[
         Optional[BackendMode],
-        typer.Option("--backend", "-b", help="Backend: anthropic or ollama (default: ollama)"),
+        typer.Option(
+            "--backend", "-b",
+            help="Backend: claude-cli (default), anthropic, or ollama",
+        ),
     ] = None,
     json_output: Annotated[
         bool,
@@ -35,14 +38,20 @@ def main(
     if backend:
         config.backend = backend
     if model:
-        if config.backend == BackendMode.ollama:
+        if config.backend == BackendMode.claude_cli:
+            config.claude_cli_model = model
+        elif config.backend == BackendMode.ollama:
             config.ollama_model = model
         else:
             config.model = model
 
     active_subset = list(grapheme.graphemes(subset)) if subset else None
 
-    result = suggest(topic, subset=active_subset, config=config)
+    try:
+        result = suggest(topic, subset=active_subset, config=config)
+    except RuntimeError as exc:
+        typer.secho(f"Error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
 
     if json_output:
         typer.echo(result.model_dump_json(indent=2))

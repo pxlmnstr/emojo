@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import subprocess
 
 import emoji as emoji_lib
@@ -49,6 +50,74 @@ Respond ONLY with valid JSON, no markdown, no explanation. Format:
 }}
 
 Topic: {topic}"""
+
+
+_CLAUDE_NOT_FOUND_MSG = (
+    "The `claude` CLI was not found. Install it and log in with your "
+    "Claude Pro/Max subscription (no API credits needed):\n"
+    "    npm install -g @anthropic-ai/claude-code\n"
+    "    claude            # run once, then /login\n"
+    "Alternatively set `claude_cli_path` in the config, or switch backend "
+    "(--backend anthropic / --backend ollama)."
+)
+
+
+def _find_claude_binary(config: EmojiSuggestConfig) -> str | None:
+    if config.claude_cli_path:
+        return config.claude_cli_path
+    # Only use a `claude` on PATH. The binary bundled inside the Claude desktop
+    # app is intentionally NOT used: it only authenticates when launched by the
+    # host app, so as a child process it always reports "Not logged in".
+    return shutil.which("claude")
+
+
+def _call_claude_cli(prompt: str, config: EmojiSuggestConfig) -> str:
+    binary = _find_claude_binary(config)
+    if not binary:
+        raise RuntimeError(_CLAUDE_NOT_FOUND_MSG)
+
+    cmd = [
+        binary,
+        "--print",
+        "--output-format", "json",
+        "--system-prompt", "You output only valid JSON. No markdown, no prose.",
+    ]
+    if config.claude_cli_model:
+        cmd += ["--model", config.claude_cli_model]
+
+    # Prompt is passed via stdin so it is never mistaken for an option value.
+    try:
+        proc = subprocess.run(
+            cmd, input=prompt, capture_output=True, text=True, timeout=120
+        )
+    except FileNotFoundError:
+        raise RuntimeError(_CLAUDE_NOT_FOUND_MSG)
+
+    if proc.returncode != 0:
+        err = proc.stderr.strip() or proc.stdout.strip()
+        if "not logged in" in err.lower() or "login" in err.lower():
+            raise RuntimeError(
+                "The `claude` CLI is not logged in. Run `claude` once and use "
+                "/login to authenticate with your Pro/Max subscription."
+            )
+        raise RuntimeError(f"Claude CLI failed (exit {proc.returncode}): {err}")
+
+    try:
+        envelope = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return proc.stdout.strip()
+
+    if isinstance(envelope, dict):
+        if envelope.get("is_error"):
+            result = str(envelope.get("result", ""))
+            if "logged in" in result.lower() or "/login" in result.lower():
+                raise RuntimeError(
+                    "The `claude` CLI is not logged in. Run `claude` once and use "
+                    "/login to authenticate with your Pro/Max subscription."
+                )
+            raise RuntimeError(f"Claude CLI error: {result}")
+        return str(envelope.get("result", "")).strip()
+    return proc.stdout.strip()
 
 
 def _call_anthropic(prompt: str, config: EmojiSuggestConfig) -> str:
@@ -105,7 +174,9 @@ def suggest(
     official = _official_matches(topic, config)
     prompt = _build_prompt(topic, active_subset, config)
 
-    if config.backend == BackendMode.anthropic:
+    if config.backend == BackendMode.claude_cli:
+        raw = _call_claude_cli(prompt, config)
+    elif config.backend == BackendMode.anthropic:
         raw = _call_anthropic(prompt, config)
     elif config.backend == BackendMode.ollama:
         raw = _call_ollama(prompt, config)
