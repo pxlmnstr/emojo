@@ -69,6 +69,20 @@ class EmojoConfig(BaseSettings):
     max_creative: int = Field(default=5)
     max_subset: int = Field(default=5)
 
+    # --- Languages ---
+    official_languages: list[str] = Field(
+        default_factory=lambda: ["en", "de"],
+        description=(
+            "Languages whose official emoji names/keywords are searched for "
+            "category 1. Subset of: "
+            "en, es, ja, ko, pt, it, fr, de, fa, id, zh, ru, tr, ar"
+        ),
+    )
+    response_language: str = Field(
+        default="en",
+        description="Language for the 'reason' texts in the output (e.g. 'de', 'en')",
+    )
+
     @classmethod
     def settings_customise_sources(
         cls,

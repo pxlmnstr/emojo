@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from typing import Annotated, Optional
+import sys
+import threading
+from contextlib import contextmanager
+from typing import Annotated, Iterator, Optional
 
 import grapheme
 import typer
@@ -9,6 +12,38 @@ from .config import BackendMode, EmojoConfig
 from .suggest import suggest
 
 app = typer.Typer(help="Suggest emojis for any topic.")
+
+# A space wandering through five dots.
+_SPINNER_FRAMES = [" ....", ". ...", ".. ..", "... .", ".... "]
+
+
+@contextmanager
+def _progress(label: str, enabled: bool) -> Iterator[None]:
+    """Show an animated wandering-dot indicator on stderr while the block runs."""
+    if not enabled:
+        yield
+        return
+
+    stop = threading.Event()
+
+    def spin() -> None:
+        i = 0
+        while not stop.is_set():
+            frame = _SPINNER_FRAMES[i % len(_SPINNER_FRAMES)]
+            sys.stderr.write(f"\r{label} {frame}")
+            sys.stderr.flush()
+            i += 1
+            stop.wait(0.15)
+        sys.stderr.write("\r" + " " * (len(label) + 7) + "\r")
+        sys.stderr.flush()
+
+    thread = threading.Thread(target=spin, daemon=True)
+    thread.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        thread.join()
 
 
 @app.command()
@@ -47,8 +82,10 @@ def main(
 
     active_subset = list(grapheme.graphemes(subset)) if subset else None
 
+    animate = not json_output and sys.stderr.isatty()
     try:
-        result = suggest(topic, subset=active_subset, config=config)
+        with _progress("Searching", animate):
+            result = suggest(topic, subset=active_subset, config=config)
     except RuntimeError as exc:
         typer.secho(f"Error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)

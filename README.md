@@ -67,6 +67,12 @@ backend: claude-cli            # claude-cli (default) | anthropic | ollama
 # claude_cli_model: claude-haiku-4-5          # optional, empty = CLI default
 # anthropic_api_key: sk-ant-...               # only for backend: anthropic
 # ollama_model: llama3.2                      # only for backend: ollama
+
+# Languages searched for official (category 1) emoji names/keywords.
+# Any subset of: en es ja ko pt it fr de fa id zh ru tr ar
+official_languages: [en, de]
+# Language for the "reason" texts in the output.
+response_language: de
 ```
 
 ## CLI usage

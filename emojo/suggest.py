@@ -7,9 +7,39 @@ import subprocess
 
 import emoji as emoji_lib
 import grapheme
+from emoji import unicode_codes
 
 from .config import EmojoConfig, BackendMode
 from .models import EmojiResult, EmojiSuggestion
+
+# Human-readable language names for prompts / labels.
+_LANGUAGE_NAMES = {
+    "en": "English", "de": "German (Deutsch)", "es": "Spanish", "fr": "French",
+    "it": "Italian", "pt": "Portuguese", "ja": "Japanese", "ko": "Korean",
+    "zh": "Chinese", "ru": "Russian", "tr": "Turkish", "ar": "Arabic",
+    "fa": "Persian", "id": "Indonesian",
+}
+
+# "Official name:" label per response language (fallback: English).
+_OFFICIAL_LABEL = {
+    "en": "Official name", "de": "Offizieller Name", "es": "Nombre oficial",
+    "fr": "Nom officiel", "it": "Nome ufficiale", "pt": "Nome oficial",
+}
+
+
+def _clean_name(name: str) -> str:
+    """Turn an emoji shortcode like ':feuer:' into 'feuer'."""
+    return name.strip(":").replace("_", " ").replace("-", " ").lower()
+
+
+def _valid_languages(langs: list[str]) -> list[str]:
+    """Keep only languages the emoji catalog actually ships, preserving order."""
+    seen: list[str] = []
+    for lang in langs:
+        if lang in emoji_lib.LANGUAGES and lang not in seen:
+            unicode_codes.load_from_json(lang)
+            seen.append(lang)
+    return seen or ["en"]
 
 
 def _official_matches(topic: str, config: EmojoConfig) -> list[EmojiSuggestion]:
@@ -17,31 +47,38 @@ def _official_matches(topic: str, config: EmojoConfig) -> list[EmojiSuggestion]:
     if not topic_words:
         topic_words = {topic.lower()}
 
-    matches: list[tuple[str, str]] = []
+    languages = _valid_languages(config.official_languages)
+    label = _OFFICIAL_LABEL.get(config.response_language, _OFFICIAL_LABEL["en"])
+
+    matches: list[tuple[str, str, int]] = []
     for char, data in emoji_lib.EMOJI_DATA.items():
-        name = data.get("en", "").lower()
-        aliases = " ".join(data.get("alias", [])).lower()
-        if any(word in f"{name} {aliases}" for word in topic_words):
-            matches.append((char, data.get("en", char)))
+        # Collect localized names across all requested languages + English aliases.
+        names = [_clean_name(data[lang]) for lang in languages if data.get(lang)]
+        names += [_clean_name(a) for a in data.get("alias", [])]
+        haystack = " ".join(names)
+        hits = sum(1 for w in topic_words if w in haystack)
+        if hits:
+            display = names[0] if names else char
+            matches.append((char, display, hits))
 
-    def score(item: tuple[str, str]) -> int:
-        return sum(1 for w in topic_words if w in item[1].lower())
-
-    matches.sort(key=score, reverse=True)
+    matches.sort(key=lambda m: m[2], reverse=True)
     return [
-        EmojiSuggestion(emoji=char, reason=f"Official name: {name}")
-        for char, name in matches[: config.max_official]
+        EmojiSuggestion(emoji=char, reason=f"{label}: {name}")
+        for char, name, _ in matches[: config.max_official]
     ]
 
 
 def _build_prompt(topic: str, subset: list[str], config: EmojoConfig) -> str:
     subset_str = " ".join(subset)
+    lang_name = _LANGUAGE_NAMES.get(config.response_language, config.response_language)
     return f"""You are an emoji expert. Given a topic, return a JSON object with two keys:
 
 "creative": A list of up to {config.max_creative} emojis that people commonly use to represent "{topic}", even if the emoji officially means something else. Include only the emoji character and a short reason.
 
 "from_subset": From this specific set of emojis: {subset_str}
 Pick up to {config.max_subset} that could best represent "{topic}". Only pick from that exact list; if none fit, return an empty list.
+
+Write every "reason" value in {lang_name}.
 
 Respond ONLY with valid JSON, no markdown, no explanation. Format:
 {{
