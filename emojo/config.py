@@ -21,7 +21,7 @@ _SUBSET_STR = (
 )
 DEFAULT_SUBSET: list[str] = [e for e in grapheme.graphemes(_SUBSET_STR) if e.strip()]
 
-_CONFIG_FILE = str(Path.home() / ".config" / "emoji-suggest" / "config.yaml")
+_CONFIG_FILE = str(Path.home() / ".config" / "emojo" / "config.yaml")
 
 
 class BackendMode(str, Enum):
@@ -30,9 +30,9 @@ class BackendMode(str, Enum):
     ollama = "ollama"
 
 
-class EmojiSuggestConfig(BaseSettings):
+class EmojoConfig(BaseSettings):
     model_config = SettingsConfigDict(
-        env_prefix="EMOJI_SUGGEST_",
+        env_prefix="EMOJO_",
         env_file=".env",
         extra="ignore",
     )

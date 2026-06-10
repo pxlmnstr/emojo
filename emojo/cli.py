@@ -5,7 +5,7 @@ from typing import Annotated, Optional
 import grapheme
 import typer
 
-from .config import BackendMode, EmojiSuggestConfig
+from .config import BackendMode, EmojoConfig
 from .suggest import suggest
 
 app = typer.Typer(help="Suggest emojis for any topic.")
@@ -34,7 +34,7 @@ def main(
         typer.Option("--json", help="Output raw JSON"),
     ] = False,
 ) -> None:
-    config = EmojiSuggestConfig()
+    config = EmojoConfig()
     if backend:
         config.backend = backend
     if model:

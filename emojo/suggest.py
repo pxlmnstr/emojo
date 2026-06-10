@@ -8,11 +8,11 @@ import subprocess
 import emoji as emoji_lib
 import grapheme
 
-from .config import EmojiSuggestConfig, BackendMode
+from .config import EmojoConfig, BackendMode
 from .models import EmojiResult, EmojiSuggestion
 
 
-def _official_matches(topic: str, config: EmojiSuggestConfig) -> list[EmojiSuggestion]:
+def _official_matches(topic: str, config: EmojoConfig) -> list[EmojiSuggestion]:
     topic_words = {w.lower() for w in re.split(r"[\s,;]+", topic) if len(w) > 2}
     if not topic_words:
         topic_words = {topic.lower()}
@@ -34,7 +34,7 @@ def _official_matches(topic: str, config: EmojiSuggestConfig) -> list[EmojiSugge
     ]
 
 
-def _build_prompt(topic: str, subset: list[str], config: EmojiSuggestConfig) -> str:
+def _build_prompt(topic: str, subset: list[str], config: EmojoConfig) -> str:
     subset_str = " ".join(subset)
     return f"""You are an emoji expert. Given a topic, return a JSON object with two keys:
 
@@ -62,7 +62,7 @@ _CLAUDE_NOT_FOUND_MSG = (
 )
 
 
-def _find_claude_binary(config: EmojiSuggestConfig) -> str | None:
+def _find_claude_binary(config: EmojoConfig) -> str | None:
     if config.claude_cli_path:
         return config.claude_cli_path
     # Only use a `claude` on PATH. The binary bundled inside the Claude desktop
@@ -71,7 +71,7 @@ def _find_claude_binary(config: EmojiSuggestConfig) -> str | None:
     return shutil.which("claude")
 
 
-def _call_claude_cli(prompt: str, config: EmojiSuggestConfig) -> str:
+def _call_claude_cli(prompt: str, config: EmojoConfig) -> str:
     binary = _find_claude_binary(config)
     if not binary:
         raise RuntimeError(_CLAUDE_NOT_FOUND_MSG)
@@ -120,7 +120,7 @@ def _call_claude_cli(prompt: str, config: EmojiSuggestConfig) -> str:
     return proc.stdout.strip()
 
 
-def _call_anthropic(prompt: str, config: EmojiSuggestConfig) -> str:
+def _call_anthropic(prompt: str, config: EmojoConfig) -> str:
     import anthropic
     client = anthropic.Anthropic(api_key=config.anthropic_api_key or None)
     msg = client.messages.create(
@@ -131,7 +131,7 @@ def _call_anthropic(prompt: str, config: EmojiSuggestConfig) -> str:
     return msg.content[0].text.strip()
 
 
-def _call_ollama(prompt: str, config: EmojiSuggestConfig) -> str:
+def _call_ollama(prompt: str, config: EmojoConfig) -> str:
     import urllib.request
     payload = json.dumps({
         "model": config.ollama_model,
@@ -164,11 +164,11 @@ def _parse_llm_response(raw: str) -> tuple[list[EmojiSuggestion], list[EmojiSugg
 def suggest(
     topic: str,
     subset: list[str] | None = None,
-    config: EmojiSuggestConfig | None = None,
+    config: EmojoConfig | None = None,
 ) -> EmojiResult:
     """Return emoji suggestions for *topic* in three categories."""
     if config is None:
-        config = EmojiSuggestConfig()
+        config = EmojoConfig()
 
     active_subset = subset if subset is not None else config.default_subset
     official = _official_matches(topic, config)

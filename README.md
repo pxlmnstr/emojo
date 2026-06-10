@@ -1,4 +1,4 @@
-# emoji-suggest
+# emojo
 
 Suggest emojis for any topic — in three categories:
 
@@ -17,11 +17,11 @@ Categories 2 and 3 are produced by an LLM. Three backends are available:
 ## Installation
 
 ```bash
-pip install emoji-suggest
+pip install emojo
 # or with YAML config support:
-pip install "emoji-suggest[yaml-config]"
+pip install "emojo[yaml-config]"
 # for the anthropic backend:
-pip install "emoji-suggest[anthropic]"
+pip install "emojo[anthropic]"
 ```
 
 ## Setup
@@ -35,7 +35,7 @@ npm install -g @anthropic-ai/claude-code
 claude            # run once, then use /login
 ```
 
-That's it — `emoji-suggest` will find `claude` on your `PATH` and reuse that
+That's it — `emojo` will find `claude` on your `PATH` and reuse that
 login. No API key, no per-request charges (it counts against your normal
 subscription usage).
 
@@ -47,19 +47,19 @@ subscription usage).
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
-emoji-suggest "Feuer" --backend anthropic
+emojo "Feuer" --backend anthropic
 ```
 
 ### Alternative: `ollama` (local)
 
 ```bash
 ollama serve
-emoji-suggest "Feuer" --backend ollama --model llama3.2
+emojo "Feuer" --backend ollama --model llama3.2
 ```
 
 ### Config file
 
-Create `~/.config/emoji-suggest/config.yaml` (needs `[yaml-config]` extra):
+Create `~/.config/emojo/config.yaml` (needs `[yaml-config]` extra):
 
 ```yaml
 backend: claude-cli            # claude-cli (default) | anthropic | ollama
@@ -72,15 +72,15 @@ backend: claude-cli            # claude-cli (default) | anthropic | ollama
 ## CLI usage
 
 ```bash
-emoji-suggest "Geschwindigkeit"
-emoji-suggest "download" --subset "⬇️📥💾🔽"
-emoji-suggest "Feuer" --json
+emojo "Geschwindigkeit"
+emojo "download" --subset "⬇️📥💾🔽"
+emojo "Feuer" --json
 ```
 
 ## Python usage
 
 ```python
-from emoji_suggest import suggest, EmojiSuggestConfig
+from emojo import suggest, EmojoConfig
 
 result = suggest("Geschwindigkeit")
 print(result.official)    # list[EmojiSuggestion]
@@ -88,8 +88,8 @@ print(result.creative)
 print(result.from_subset)
 
 # Custom config — pick a backend explicitly
-from emoji_suggest import BackendMode
-config = EmojiSuggestConfig(backend=BackendMode.claude_cli)
+from emojo import BackendMode
+config = EmojoConfig(backend=BackendMode.claude_cli)
 result = suggest("fire", subset=["🔥", "♨️", "💥"], config=config)
 ```
 
@@ -103,6 +103,6 @@ result = suggest("fire", subset=["🔥", "♨️", "💥"], config=config)
 ## GitHub
 
 ```bash
-git remote add origin https://github.com/YOUR_USERNAME/emoji-suggest.git
+git remote add origin https://github.com/YOUR_USERNAME/emojo.git
 git push -u origin main
 ```
