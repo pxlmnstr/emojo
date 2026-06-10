@@ -77,27 +77,99 @@ response_language: de
 
 ## CLI usage
 
+A bare topic runs the query (no subcommand needed):
+
 ```bash
 emojo "Geschwindigkeit"
 emojo "download" --subset "⬇️📥💾🔽"
 emojo "Feuer" --json
 ```
 
+While the query runs, an animated `Searching ....` indicator is shown on
+stderr (suppressed when output is piped or `--json` is used).
+
+### Query options (override the config file per call)
+
+| Option | Short | Meaning |
+|--------|-------|---------|
+| `--subset TEXT` | `-s` | Use this emoji set for category 3 instead of the default |
+| `--backend NAME` | `-b` | `claude-cli` \| `anthropic` \| `ollama` |
+| `--model NAME` | `-m` | Model name for the chosen backend |
+| `--languages a,b` | `-l` | Languages for the official search, e.g. `en,de` |
+| `--response-language X` | `-r` | Language of the reason texts, e.g. `de` |
+| `--max-official N` / `--max-creative N` / `--max-subset N` | | Result caps per category |
+| `--json` | | Print the raw result as JSON |
+
+```bash
+emojo "Recycling" --languages en,de --response-language de
+emojo "fire" --backend ollama --model llama3.2 --max-creative 3
+```
+
+### Managing the persistent config
+
+The config lives at `~/.config/emojo/config.yaml` (editing needs the
+`[yaml-config]` extra).
+
+```bash
+emojo config path                       # print the file location
+emojo config show                       # show effective config (file + env)
+emojo config get response_language      # read one value
+emojo config set response_language de   # write one value
+emojo config set official_languages en,de   # lists: comma-separated
+emojo config edit                       # open in $EDITOR
+```
+
+Values are validated before they are written, so a typo like
+`emojo config set backend bogus` is rejected.
+
 ## Python usage
 
 ```python
-from emojo import suggest, EmojoConfig
+from emojo import suggest
 
 result = suggest("Geschwindigkeit")
-print(result.official)    # list[EmojiSuggestion]
-print(result.creative)
-print(result.from_subset)
-
-# Custom config — pick a backend explicitly
-from emojo import BackendMode
-config = EmojoConfig(backend=BackendMode.claude_cli)
-result = suggest("fire", subset=["🔥", "♨️", "💥"], config=config)
+for s in result.official:     # list[EmojiSuggestion]
+    print(s.emoji, s.reason)
+print(result.creative)        # list[EmojiSuggestion]
+print(result.from_subset)     # list[EmojiSuggestion]
+print(result.model_dump())    # plain dict (pydantic model)
 ```
+
+### Per-call overrides (these beat the config file)
+
+```python
+from emojo import suggest, BackendMode
+
+result = suggest(
+    "Recycling",
+    subset=["🔄", "♻️", "🔁"],          # category-3 candidates
+    backend="ollama",                    # or BackendMode.ollama
+    model="llama3.2",
+    official_languages=["en", "de"],
+    response_language="de",
+    max_creative=3,
+)
+```
+
+### Reusing an explicit config object
+
+```python
+from emojo import suggest, EmojoConfig, BackendMode
+
+config = EmojoConfig(
+    backend=BackendMode.claude_cli,
+    response_language="de",
+    official_languages=["en", "de"],
+)
+result = suggest("fire", config=config)
+
+# Keyword overrides still win over the passed config:
+result = suggest("fire", config=config, response_language="en")
+```
+
+`EmojoConfig` reads, in order of precedence: keyword overrides on `suggest()`
+→ explicit `config=` values → environment variables (`EMOJO_*`) →
+`~/.config/emojo/config.yaml` → built-in defaults.
 
 ## Publishing to PyPI
 

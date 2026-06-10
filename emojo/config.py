@@ -24,6 +24,11 @@ DEFAULT_SUBSET: list[str] = [e for e in grapheme.graphemes(_SUBSET_STR) if e.str
 _CONFIG_FILE = str(Path.home() / ".config" / "emojo" / "config.yaml")
 
 
+def config_path() -> Path:
+    """Path to the user's YAML config file (may not exist yet)."""
+    return Path(_CONFIG_FILE)
+
+
 class BackendMode(str, Enum):
     claude_cli = "claude-cli"
     anthropic = "anthropic"

@@ -52,13 +52,14 @@ def _official_matches(topic: str, config: EmojoConfig) -> list[EmojiSuggestion]:
 
     matches: list[tuple[str, str, int]] = []
     for char, data in emoji_lib.EMOJI_DATA.items():
-        # Collect localized names across all requested languages + English aliases.
-        names = [_clean_name(data[lang]) for lang in languages if data.get(lang)]
-        names += [_clean_name(a) for a in data.get("alias", [])]
+        # Collect localized names per language (+ English aliases) for searching.
+        localized = {lang: _clean_name(data[lang]) for lang in languages if data.get(lang)}
+        names = list(localized.values()) + [_clean_name(a) for a in data.get("alias", [])]
         haystack = " ".join(names)
         hits = sum(1 for w in topic_words if w in haystack)
         if hits:
-            display = names[0] if names else char
+            # Show the name in the response language if it was searched, else the first.
+            display = localized.get(config.response_language) or (names[0] if names else char)
             matches.append((char, display, hits))
 
     matches.sort(key=lambda m: m[2], reverse=True)
@@ -198,14 +199,76 @@ def _parse_llm_response(raw: str) -> tuple[list[EmojiSuggestion], list[EmojiSugg
     return creative, from_subset
 
 
+def _apply_overrides(
+    config: EmojoConfig,
+    *,
+    backend: BackendMode | str | None,
+    model: str | None,
+    official_languages: list[str] | None,
+    response_language: str | None,
+    max_official: int | None,
+    max_creative: int | None,
+    max_subset: int | None,
+) -> EmojoConfig:
+    """Return a copy of *config* with any non-None override applied (overrides win)."""
+    updates: dict[str, object] = {}
+    if backend is not None:
+        updates["backend"] = backend if isinstance(backend, BackendMode) else BackendMode(backend)
+    if official_languages is not None:
+        updates["official_languages"] = official_languages
+    if response_language is not None:
+        updates["response_language"] = response_language
+    if max_official is not None:
+        updates["max_official"] = max_official
+    if max_creative is not None:
+        updates["max_creative"] = max_creative
+    if max_subset is not None:
+        updates["max_subset"] = max_subset
+    if updates:
+        config = config.model_copy(update=updates)
+
+    # `model` maps onto the model field of the (possibly overridden) backend.
+    if model is not None:
+        field = {
+            BackendMode.claude_cli: "claude_cli_model",
+            BackendMode.anthropic: "model",
+            BackendMode.ollama: "ollama_model",
+        }[config.backend]
+        config = config.model_copy(update={field: model})
+    return config
+
+
 def suggest(
     topic: str,
     subset: list[str] | None = None,
     config: EmojoConfig | None = None,
+    *,
+    backend: BackendMode | str | None = None,
+    model: str | None = None,
+    official_languages: list[str] | None = None,
+    response_language: str | None = None,
+    max_official: int | None = None,
+    max_creative: int | None = None,
+    max_subset: int | None = None,
 ) -> EmojiResult:
-    """Return emoji suggestions for *topic* in three categories."""
+    """Return emoji suggestions for *topic* in three categories.
+
+    Any keyword override (``backend``, ``model``, ``official_languages``,
+    ``response_language``, ``max_*``) takes precedence over ``config`` and the
+    user's config file.
+    """
     if config is None:
         config = EmojoConfig()
+    config = _apply_overrides(
+        config,
+        backend=backend,
+        model=model,
+        official_languages=official_languages,
+        response_language=response_language,
+        max_official=max_official,
+        max_creative=max_creative,
+        max_subset=max_subset,
+    )
 
     active_subset = subset if subset is not None else config.default_subset
     official = _official_matches(topic, config)
