@@ -103,6 +103,6 @@ result = suggest("fire", subset=["🔥", "♨️", "💥"], config=config)
 ## GitHub
 
 ```bash
-git remote add origin https://github.com/YOUR_USERNAME/emojo.git
+git remote add origin https://github.com/pxlmnstr/emojo.git
 git push -u origin main
 ```

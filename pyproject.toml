@@ -9,11 +9,16 @@ description = "Suggest emojis for any topic — official, creative, and from a c
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
+authors = [{ name = "Nathanael Siering" }]
 keywords = ["emoji", "nlp", "claude", "anthropic"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Text Processing :: Linguistic",
+    "Environment :: Console",
 ]
+
 dependencies = [
     "emoji>=2.10.0",
     "grapheme>=0.6.0",
@@ -21,6 +26,11 @@ dependencies = [
     "pydantic-settings>=2.0",
     "typer>=0.12.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/pxlmnstr/emojo"
+Repository = "https://github.com/pxlmnstr/emojo"
+Issues = "https://github.com/pxlmnstr/emojo/issues"
 
 [project.scripts]
 emojo = "emojo.cli:run"
