@@ -74,7 +74,7 @@ def _build_prompt(topic: str, subset: list[str], config: EmojoConfig) -> str:
     lang_name = _LANGUAGE_NAMES.get(config.response_language, config.response_language)
     return f"""You are an emoji expert. Given a topic, return a JSON object with two keys:
 
-"creative": A list of up to {config.max_creative} emojis that people commonly use to represent "{topic}", even if the emoji officially means something else. Include only the emoji character and a short reason.
+"creative": A list of up to {config.max_creative} emojis that people commonly use to represent "{topic}", even if the emoji officially means something else. The "emoji" field MUST contain only actual emoji characters (Unicode emoji), never words or text.
 
 "from_subset": From this specific set of emojis: {subset_str}
 Pick up to {config.max_subset} that could best represent "{topic}". Only pick from that exact list; if none fit, return an empty list.
@@ -186,6 +186,18 @@ def _call_ollama(prompt: str, config: EmojoConfig) -> str:
     return data["response"].strip()
 
 
+def _is_emoji(text: str) -> bool:
+    """Return True if *text* consists entirely of emoji graphemes (no plain text)."""
+    s = text.strip()
+    if not s:
+        return False
+    # Every grapheme cluster in the value must be a recognized emoji.
+    return all(
+        emoji_lib.is_emoji(g) or emoji_lib.is_emoji(g.rstrip("️⃣"))
+        for g in grapheme.graphemes(s)
+    )
+
+
 def _parse_llm_response(raw: str) -> tuple[list[EmojiSuggestion], list[EmojiSuggestion]]:
     raw = re.sub(r"^```[a-z]*\n?", "", raw)
     raw = re.sub(r"\n?```$", "", raw)
@@ -194,8 +206,17 @@ def _parse_llm_response(raw: str) -> tuple[list[EmojiSuggestion], list[EmojiSugg
     if m:
         raw = m.group(0)
     data = json.loads(raw)
-    creative = [EmojiSuggestion(**item) for item in data.get("creative", [])]
-    from_subset = [EmojiSuggestion(**item) for item in data.get("from_subset", [])]
+    def _clean(items: list[dict]) -> list[EmojiSuggestion]:
+        result = []
+        for item in items:
+            raw = item.get("emoji", "")
+            stripped = raw.strip()
+            if _is_emoji(stripped):
+                result.append(EmojiSuggestion(emoji=stripped, reason=item.get("reason", "")))
+        return result
+
+    creative = _clean(data.get("creative", []))
+    from_subset = _clean(data.get("from_subset", []))
     return creative, from_subset
 
 
